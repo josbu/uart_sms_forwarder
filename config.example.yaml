@@ -15,10 +15,12 @@ server:
 App:
   # JWT配置
   JWT:
-    Secret: "cf105e36-68ac-45be-be8a-348efcad4f1d"
+    # 随机生成一个 32 字节的字符串，推荐使用 openssl rand -base64 32 生成
+    Secret: ""
     ExpiresHours: 168 # 7天
   Users:
-    admin: "$2y$12$7DXcOiX1D59xNTIn5riUKusAPLP88LxxoczWmUT83MBj5EFznbp8a"  # 默认密码: admin123
+    # 使用 Bcrypt 加密，默认密码为 admin123，建议首次登录后修改密码
+    admin: "$2y$12$7DXcOiX1D59xNTIn5riUKusAPLP88LxxoczWmUT83MBj5EFznbp8a"
 
   # 串口配置
   Serial:

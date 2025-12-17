@@ -46,10 +46,48 @@
 
 ### 5. 运行上位机程序
 
-下载 release 中的压缩包，解压之后进入目录，执行
+下载
 
-```bash
-./uart_sms_forwarder
+```shell
+wget https://github.com/dushixiang/uart_sms_forwarder/releases/latest/download/uart_sms_forwarder-linux-amd64.tar.gz
 ```
 
-等待程序启动，默认会自动识别串口，确定串口之后，建议更改 config.yaml 中的串口配置。
+解压
+```bash
+tar -zxvf uart_sms_forwarder-linux-amd64.tar.gz -C /opt/
+mv /opt/uart_sms_forwarder-linux-amd64 /opt/uart_sms_forwarder
+```
+
+创建系统服务
+
+```shell
+cat <<EOF > /etc/systemd/system/uart_sms_forwarder.service
+[Unit]
+Description=uart_sms_forwarder service
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/opt/uart_sms_forwarder
+ExecStart=/opt/uart_sms_forwarder/uart_sms_forwarder
+TimeoutSec=0
+RestartSec=10
+Restart=always
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+启动服务
+
+```shell
+systemctl daemon-reload
+systemctl enable uart_sms_forwarder
+systemctl start uart_sms_forwarder
+```
+
+打开浏览器访问 8080 端口。
+
+修改密码等配置项，请参考 [config.example.yaml](config.example.yaml) 文件。
