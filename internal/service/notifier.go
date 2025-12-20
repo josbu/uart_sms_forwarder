@@ -30,6 +30,39 @@ func NewNotifier(logger *zap.Logger) *Notifier {
 	}
 }
 
+// NotificationMessage 通用通知消息（支持短信、来电等）
+type NotificationMessage struct {
+	Type      string // "sms" 或 "call"
+	From      string
+	Content   string // 短信内容（来电时为空）
+	Timestamp int64
+}
+
+func (m NotificationMessage) String() string {
+	timestamp := time.Unix(m.Timestamp, 0)
+	switch m.Type {
+	case "call":
+		return fmt.Sprintf(`来电通知
+----
+来电号码: %s
+时间: %s
+`,
+			m.From,
+			timestamp.Format(time.DateTime),
+		)
+	default: // "sms"
+		return fmt.Sprintf(`%s
+----
+来自: %s
+时间: %s
+`,
+			m.Content,
+			m.From,
+			timestamp.Format(time.DateTime),
+		)
+	}
+}
+
 // sendDingTalk 发送钉钉通知
 func (n *Notifier) sendDingTalk(ctx context.Context, webhook, secret, message string) error {
 	// 构造钉钉消息体
@@ -108,7 +141,7 @@ func (n *Notifier) sendFeishu(ctx context.Context, webhook, message string) erro
 }
 
 // sendCustomWebhook 发送自定义Webhook
-func (n *Notifier) sendCustomWebhook(ctx context.Context, config map[string]interface{}, sms IncomingSMS) error {
+func (n *Notifier) sendCustomWebhook(ctx context.Context, config map[string]interface{}, msg NotificationMessage) error {
 	// 解析配置
 	webhookURL, ok := config["url"].(string)
 	if !ok || webhookURL == "" {
@@ -150,11 +183,13 @@ func (n *Notifier) sendCustomWebhook(ctx context.Context, config map[string]inte
 
 		switch tag {
 		case "from":
-			v = sms.From
+			v = msg.From
 		case "content":
-			v = sms.Content
+			v = msg.Content
+		case "type":
+			v = msg.Type
 		case "timestamp":
-			timestamp := time.Unix(sms.Timestamp, 0).Format(time.DateTime)
+			timestamp := time.Unix(msg.Timestamp, 0).Format(time.DateTime)
 			v = timestamp
 		default:
 			return w.Write([]byte("{{" + tag + "}}"))
@@ -300,13 +335,13 @@ func (n *Notifier) SendFeishuByConfig(ctx context.Context, config map[string]int
 	return n.sendFeishuByConfig(ctx, config, message)
 }
 
-// SendWebhookByConfig 导出方法供外部调用（测试用）
-func (n *Notifier) SendWebhookByConfig(ctx context.Context, config map[string]interface{}, sms IncomingSMS) error {
-	return n.sendCustomWebhook(ctx, config, sms)
+// SendWebhookByConfig 导出方法供外部调用
+func (n *Notifier) SendWebhookByConfig(ctx context.Context, config map[string]interface{}, msg NotificationMessage) error {
+	return n.sendCustomWebhook(ctx, config, msg)
 }
 
 // sendEmail 发送邮件通知
-func (n *Notifier) sendEmail(ctx context.Context, config map[string]interface{}, sms IncomingSMS) error {
+func (n *Notifier) sendEmail(ctx context.Context, config map[string]interface{}, msg NotificationMessage) error {
 	// 解析配置
 	smtpHost, ok := config["smtpHost"].(string)
 	if !ok || smtpHost == "" {
@@ -346,7 +381,11 @@ func (n *Notifier) sendEmail(ctx context.Context, config map[string]interface{},
 
 	subject, ok := config["subject"].(string)
 	if !ok || subject == "" {
-		subject = "收到新短信 - {{from}}"
+		if msg.Type == "call" {
+			subject = "来电通知 - {{from}}"
+		} else {
+			subject = "收到新短信 - {{from}}"
+		}
 	}
 
 	// 模板变量替换函数
@@ -356,11 +395,13 @@ func (n *Notifier) sendEmail(ctx context.Context, config map[string]interface{},
 			var v string
 			switch tag {
 			case "from":
-				v = sms.From
+				v = msg.From
 			case "content":
-				v = sms.Content
+				v = msg.Content
+			case "type":
+				v = msg.Type
 			case "timestamp":
-				v = time.Unix(sms.Timestamp, 0).Format(time.DateTime)
+				v = time.Unix(msg.Timestamp, 0).Format(time.DateTime)
 			default:
 				return w.Write([]byte("{{" + tag + "}}"))
 			}
@@ -372,7 +413,7 @@ func (n *Notifier) sendEmail(ctx context.Context, config map[string]interface{},
 	subject = replaceVars(subject)
 
 	// 构造邮件内容
-	body := sms.String()
+	body := msg.String()
 
 	// 分隔多个收件人
 	toList := strings.Split(to, ",")
@@ -404,23 +445,24 @@ func (n *Notifier) sendEmail(ctx context.Context, config map[string]interface{},
 	return nil
 }
 
-// sendEmailByConfig 根据配置发送邮件通知
+// sendEmailByConfig 根据配置发送邮件通知（用于测试）
 func (n *Notifier) sendEmailByConfig(ctx context.Context, config map[string]interface{}, message string) error {
-	// 构造一个临时的 IncomingSMS 对象用于测试
-	sms := IncomingSMS{
+	// 构造一个临时的 NotificationMessage 对象用于测试
+	msg := NotificationMessage{
+		Type:      "sms",
 		From:      "测试发送方",
 		Content:   message,
 		Timestamp: time.Now().Unix(),
 	}
-	return n.sendEmail(ctx, config, sms)
+	return n.sendEmail(ctx, config, msg)
 }
 
-// SendEmailByConfig 导出方法供外部调用
+// SendEmailByConfig 导出方法供外部调用（用于测试）
 func (n *Notifier) SendEmailByConfig(ctx context.Context, config map[string]interface{}, message string) error {
 	return n.sendEmailByConfig(ctx, config, message)
 }
 
-// SendEmailBySMS 根据短信内容发送邮件（用于实际短信转发）
-func (n *Notifier) SendEmailBySMS(ctx context.Context, config map[string]interface{}, sms IncomingSMS) error {
-	return n.sendEmail(ctx, config, sms)
+// SendEmail 发送邮件通知（通用方法）
+func (n *Notifier) SendEmail(ctx context.Context, config map[string]interface{}, msg NotificationMessage) error {
+	return n.sendEmail(ctx, config, msg)
 }

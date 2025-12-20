@@ -68,6 +68,19 @@ func (s *SerialService) handleIncomingSMS(msg *ParsedMessage) {
 
 // sendNotification 发送通知
 func (s *SerialService) sendNotification(ctx context.Context, sms IncomingSMS) {
+	// 转换为通用通知消息
+	msg := NotificationMessage{
+		Type:      "sms",
+		From:      sms.From,
+		Content:   sms.Content,
+		Timestamp: sms.Timestamp,
+	}
+
+	s.sendNotificationMessage(ctx, msg)
+}
+
+// sendNotificationMessage 发送通用通知消息
+func (s *SerialService) sendNotificationMessage(ctx context.Context, msg NotificationMessage) {
 	// 获取通知渠道配置
 	channels, err := s.propertyService.GetNotificationChannelConfigs(ctx)
 	if err != nil {
@@ -76,7 +89,7 @@ func (s *SerialService) sendNotification(ctx context.Context, sms IncomingSMS) {
 	}
 
 	// 格式化消息
-	message := sms.String()
+	message := msg.String()
 
 	// 发送到所有启用的渠道
 	for _, channel := range channels {
@@ -93,9 +106,9 @@ func (s *SerialService) sendNotification(ctx context.Context, sms IncomingSMS) {
 		case "feishu":
 			sendErr = s.notifier.SendFeishuByConfig(ctx, channel.Config, message)
 		case "webhook":
-			sendErr = s.notifier.SendWebhookByConfig(ctx, channel.Config, sms)
+			sendErr = s.notifier.SendWebhookByConfig(ctx, channel.Config, msg)
 		case "email":
-			sendErr = s.notifier.SendEmailBySMS(ctx, channel.Config, sms)
+			sendErr = s.notifier.SendEmail(ctx, channel.Config, msg)
 		}
 
 		if sendErr != nil {
@@ -134,7 +147,8 @@ func (s *SerialService) handleSMSSendResult(msg *ParsedMessage) {
 		s.logger.Warn("短信发送失败",
 			zap.String("to", to),
 			zap.String("request_id", requestID))
-		go s.sendNotification(context.Background(), IncomingSMS{
+		go s.sendNotificationMessage(context.Background(), NotificationMessage{
+			Type:      "sms",
 			From:      "UART 短信转发器",
 			Content:   fmt.Sprintf("短信发送失败: %s", to),
 			Timestamp: time.Now().Unix(),

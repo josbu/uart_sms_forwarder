@@ -9,16 +9,21 @@ import (
 type StatusData struct {
 	CellularEnabled bool   `json:"cellular_enabled"`
 	Type            string `json:"type"`
+	Version         string `json:"version"` // Lua 脚本版本
 	Mobile          struct {
-		IsRegistered bool   `json:"is_registered"`
-		Iccid        string `json:"iccid"`
-		NetworkType  string `json:"network_type"`
-		SignalDesc   string `json:"signal_desc"`
-		SignalLevel  int    `json:"signal_level"`
-		SimReady     bool   `json:"sim_ready"`
-		Rssi         int    `json:"rssi"`
-		Imsi         string `json:"imsi"`
-		Operator     string `json:"operator"`
+		IsRegistered bool    `json:"is_registered"`
+		Iccid        string  `json:"iccid"`
+		NetworkType  string  `json:"network_type"`
+		SignalDesc   string  `json:"signal_desc"`
+		SignalLevel  int     `json:"signal_level"`
+		SimReady     bool    `json:"sim_ready"`
+		Rssi         int     `json:"rssi"`
+		Csq          int     `json:"csq"`      // CSQ 信号强度 (0-31)
+		Rsrp         int     `json:"rsrp"`     // 参考信号接收功率 (-44 到 -140)
+		Rsrq         float64 `json:"rsrq"`     // 参考信号发送功率 (-3 到 -19.5)
+		Imsi         string  `json:"imsi"`     // SIM 卡 IMSI
+		Number       string  `json:"number"`   // 手机号
+		Operator     string  `json:"operator"` // 运营商名称
 	} `json:"mobile"`
 	Timestamp int    `json:"timestamp"`
 	MemKb     int    `json:"mem_kb"`

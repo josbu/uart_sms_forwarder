@@ -17,6 +17,8 @@ func (s *SerialService) initMessageHandlers() {
 		"sim_event":                 s.handleSIMEvent,
 		"warning":                   s.handleWarningMessage,
 		"error":                     s.handleErrorMessage,
+		"incoming_call":             s.handleIncomingCall,
+		"call_disconnected":         s.handleCallDisconnected,
 	}
 }
 

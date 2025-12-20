@@ -22,6 +22,7 @@ local max_buffer_size = 50
 local msg_buffer = {}
 local uart_recv_buffer = ""
 local cellular_enabled = true
+local call_ring_count = 0  -- 来电响铃计数
 
 -- ========== 关键：禁用自动数据连接 ==========
 mobile.setAuto(0)
@@ -47,9 +48,16 @@ function get_mobile_info()
     info.sim_ready = (iccid ~= nil and iccid ~= "" and iccid ~= "unknown")
     info.iccid = iccid or "unknown"
     info.imsi = mobile.imsi() or "unknown"
+    info.number = mobile.number(0) or ""  -- 获取手机号，可能为空
 
-    local csq = mobile.csq() or 0 -- 防止未注册时返回 nil
-    info.rssi = mobile.rssi() or -113
+    -- 获取信号强度指标
+    local csq = mobile.csq() or 0 -- 范围 0-31，越大越好
+    info.csq = csq
+    info.rssi = mobile.rssi() or -113  -- 范围 0到-114，值越大越好
+    info.rsrp = mobile.rsrp() or -140  -- 范围 -44到-140，值越大越好 (4G模块)
+    info.rsrq = mobile.rsrq() or -20   -- 范围 -3到-19.5，值越大越好 (4G模块)
+
+    -- 根据 CSQ 判断信号等级（仅供参考，4G模块应参考rsrp/rsrq）
     if csq == 0 or csq == 99 then
         info.signal_level = 0
         info.signal_desc = "无信号"
@@ -102,6 +110,7 @@ function process_uart_command(cmd_data)
             timestamp = os.time(),
             mem_kb = math.floor(collectgarbage("count")),
             cellular_enabled = cellular_enabled,
+            version = VERSION,
             mobile = get_mobile_info()
         })
 
@@ -158,6 +167,46 @@ end)
 
 sys.subscribe("SIM_IND", function(status)
     send_to_uart({type = "sim_event", status = status})
+end)
+
+-- 来电事件处理
+sys.subscribe("CC_IND", function(state)
+    if state == "READY" then
+        log.info("Call", "通话准备完成")
+
+    elseif state == "INCOMINGCALL" then
+        -- 有电话呼入
+        if call_ring_count == 0 then
+            log.info("Call", "检测到来电")
+            local phone_num = cc.lastNum()
+            log.info("Call", "来电号码:", phone_num or "unknown")
+
+            -- 转发来电通知到 UART
+            send_to_uart({
+                type = "incoming_call",
+                timestamp = os.time(),
+                from = phone_num or "unknown"
+            })
+        end
+
+        call_ring_count = call_ring_count + 1
+
+        -- 响4声后自动挂断（可根据需求调整）
+        if call_ring_count > 3 then
+            log.info("Call", "自动挂断来电")
+            cc.hangUp()
+            call_ring_count = 0
+        end
+
+    elseif state == "DISCONNECTED" then
+        -- 电话被挂断
+        log.info("Call", "通话结束")
+        call_ring_count = 0
+        send_to_uart({
+            type = "call_disconnected",
+            timestamp = os.time()
+        })
+    end
 end)
 
 -- =================================================================================

@@ -111,15 +111,25 @@ export default function SerialControl() {
                   </span>
                                 </div>
                                 <div className="flex justify-between items-center pb-2 border-b">
-                                    <span className="text-xs text-gray-500">信号等级</span>
+                                    <span className="text-xs text-gray-500">CSQ</span>
                                     <span className="text-sm font-medium">
-                    {mobile.signal_level} <span className="text-xs text-gray-400">({mobile.signal_desc})</span>
+                    {mobile.csq || mobile.signal_level} <span className="text-xs text-gray-400">({mobile.signal_desc})</span>
                   </span>
                                 </div>
                                 <div className="flex justify-between items-center pb-2 border-b">
                                     <span className="text-xs text-gray-500">RSSI</span>
                                     <span className="text-sm font-medium">{mobile.rssi} <span
                                         className="text-xs text-gray-400">dBm</span></span>
+                                </div>
+                                <div className="flex justify-between items-center pb-2 border-b">
+                                    <span className="text-xs text-gray-500">RSRP</span>
+                                    <span className="text-sm font-medium">{mobile.rsrp || 'N/A'} <span
+                                        className="text-xs text-gray-400">dBm</span></span>
+                                </div>
+                                <div className="flex justify-between items-center pb-2 border-b">
+                                    <span className="text-xs text-gray-500">RSRQ</span>
+                                    <span className="text-sm font-medium">{mobile.rsrq || 'N/A'} <span
+                                        className="text-xs text-gray-400">dB</span></span>
                                 </div>
                                 <div className="flex justify-between items-center pb-2 border-b">
                                     <span className="text-xs text-gray-500">网络注册</span>
@@ -141,6 +151,13 @@ export default function SerialControl() {
                                     <div
                                         className="font-mono text-xs bg-gray-50 p-1.5 rounded break-all">{mobile.imsi}</div>
                                 </div>
+                                {mobile.number && (
+                                    <div className="pt-1">
+                                        <div className="text-xs text-gray-500 mb-1">手机号</div>
+                                        <div
+                                            className="font-mono text-xs bg-gray-50 p-1.5 rounded break-all">{mobile.number}</div>
+                                    </div>
+                                )}
 
                             </div>
                         ) : (
@@ -232,6 +249,12 @@ export default function SerialControl() {
                                         <div className="flex justify-between items-center pb-2 border-b">
                                             <span className="text-xs text-gray-500">串口名称</span>
                                             <span className="text-sm font-medium font-mono">{deviceStatus.port_name}</span>
+                                        </div>
+                                    )}
+                                    {deviceStatus.version && (
+                                        <div className="flex justify-between items-center pb-2 border-b">
+                                            <span className="text-xs text-gray-500">固件版本</span>
+                                            <span className="text-sm font-medium font-mono text-blue-600">{deviceStatus.version}</span>
                                         </div>
                                     )}
                                     <div className="flex justify-between items-center pb-2 border-b">
