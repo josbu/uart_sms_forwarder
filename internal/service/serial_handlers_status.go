@@ -12,6 +12,7 @@ type StatusData struct {
 	Version         string `json:"version"` // Lua 脚本版本
 	Mobile          struct {
 		IsRegistered bool    `json:"is_registered"`
+		IsRoaming    bool    `json:"is_roaming"`
 		Iccid        string  `json:"iccid"`
 		SignalDesc   string  `json:"signal_desc"`
 		SignalLevel  int     `json:"signal_level"`
