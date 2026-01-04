@@ -180,7 +180,7 @@ func (s *SerialService) runOnce(resetBackoff func()) error {
 	go s.periodicCacheUpdate(connCtx)
 
 	// 首次立即发送缓存更新请求
-	go s.requestCacheUpdate()
+	go s.RequestCacheUpdate()
 
 	// 等待连接断开
 	s.wg.Wait()
@@ -324,13 +324,13 @@ func (s *SerialService) periodicCacheUpdate(connCtx context.Context) {
 			s.logger.Info("停止定时更新缓存")
 			return
 		case <-ticker.C:
-			s.requestCacheUpdate()
+			s.RequestCacheUpdate()
 		}
 	}
 }
 
-// requestCacheUpdate 请求更新缓存（只发送命令，不等待响应）
-func (s *SerialService) requestCacheUpdate() {
+// RequestCacheUpdate 请求更新缓存（只发送命令，不等待响应）
+func (s *SerialService) RequestCacheUpdate() {
 	s.logger.Debug("发送缓存更新请求")
 
 	// 发送获取设备状态命令（包含移动网络信息）
@@ -420,9 +420,13 @@ func (s *SerialService) GetStatus() (*StatusData, error) {
 	return status, nil
 }
 
-// ResetStack 重启协议栈
-func (s *SerialService) ResetStack() error {
-	cmd := map[string]string{"action": "reset_stack"}
+// SetFlymode 设置飞行模式
+// enabled: true 表示启用飞行模式，false 表示禁用飞行模式
+func (s *SerialService) SetFlymode(enabled bool) error {
+	cmd := map[string]any{
+		"action":  "set_flymode",
+		"enabled": enabled,
+	}
 	if err := s.sendJSONCommand(cmd); err != nil {
 		return err
 	}

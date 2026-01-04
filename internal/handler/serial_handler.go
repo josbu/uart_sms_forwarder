@@ -70,16 +70,30 @@ func (h *SerialHandler) GetStatus(c echo.Context) error {
 	return c.JSON(http.StatusOK, data)
 }
 
-// ResetStack 重启协议栈
-// POST /api/serial/reset
-func (h *SerialHandler) ResetStack(c echo.Context) error {
-	err := h.serialService.ResetStack()
+// SetFlymodeRequest 设置飞行模式请求
+type SetFlymodeRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+// SetFlymode 设置飞行模式
+// POST /api/serial/flymode
+// Body: {"enabled": true}
+func (h *SerialHandler) SetFlymode(c echo.Context) error {
+	var req SetFlymodeRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "请求参数错误",
+		})
+	}
+
+	err := h.serialService.SetFlymode(req.Enabled)
 	if err != nil {
-		h.logger.Error("重启协议栈失败", zap.Error(err))
+		h.logger.Error("设置飞行模式失败", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": err.Error(),
 		})
 	}
+	go h.serialService.RequestCacheUpdate()
 
 	return c.JSON(http.StatusOK, map[string]any{})
 }
@@ -94,6 +108,7 @@ func (h *SerialHandler) RebootMcu(c echo.Context) error {
 			"error": err.Error(),
 		})
 	}
+	go h.serialService.RequestCacheUpdate()
 
 	return c.JSON(http.StatusOK, map[string]any{})
 }

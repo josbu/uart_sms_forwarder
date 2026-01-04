@@ -7,6 +7,7 @@ import {Input} from '@/components/ui/input';
 import {Textarea} from '@/components/ui/textarea';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
+import {Switch} from '@/components/ui/switch';
 import type {DeviceStatus} from '@/api/types';
 import {formatUptime} from "@/utils/utils.ts";
 
@@ -15,7 +16,7 @@ export default function SerialControl() {
     const [content, setContent] = useState('');
 
     // 获取设备状态（包含移动网络信息）- 每 30 秒自动刷新
-    const {data: deviceStatus, isFetching} = useQuery({
+    const {data: deviceStatus, isFetching, refetch: refetchStatus} = useQuery({
         queryKey: ['deviceStatus'],
         queryFn: async () => {
             const res = await serialApi.getStatus();
@@ -38,11 +39,13 @@ export default function SerialControl() {
         },
     });
 
-    // 重启协议栈 Mutation
-    const resetStackMutation = useMutation({
-        mutationFn: () => serialApi.resetStack(),
+    // 设置飞行模式 Mutation
+    const setFlymodeMutation = useMutation({
+        mutationFn: (enabled: boolean) => serialApi.setFlymode(enabled),
         onSuccess: () => {
-            toast.success('协议栈已重启');
+            toast.success('设置成功');
+            // 刷新设备状态
+            refetchStatus();
         },
         onError: (error) => {
             console.error('操作失败:', error);
@@ -55,6 +58,7 @@ export default function SerialControl() {
         mutationFn: () => serialApi.rebootMcu(),
         onSuccess: () => {
             toast.success('模块重启命令已发送');
+            refetchStatus();
         },
         onError: (error) => {
             console.error('操作失败:', error);
@@ -283,12 +287,12 @@ export default function SerialControl() {
                                         <span className="text-sm font-medium">{deviceStatus.mem_kb.toFixed(2)} KB</span>
                                     </div>
                                     <div className="flex justify-between items-center pb-2 border-b">
-                                        <span className="text-xs text-gray-500">蜂窝网络</span>
+                                        <span className="text-xs text-gray-500">飞行模式</span>
                                         <span className="text-sm font-medium">
-                                            {deviceStatus.cellular_enabled ? (
-                                                <span className="text-green-600">已启用</span>
+                                            {deviceStatus.flymode ? (
+                                                <span className="text-orange-600">已启用</span>
                                             ) : (
-                                                <span className="text-orange-600">已禁用</span>
+                                                <span className="text-green-600">已禁用</span>
                                             )}
                                         </span>
                                     </div>
@@ -306,28 +310,31 @@ export default function SerialControl() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-2">
-                                <p className="text-xs text-gray-600">
-                                    如果设备网络出现异常，可以尝试重启协议栈来恢复连接
-                                </p>
-                                <Button
-                                    onClick={() => resetStackMutation.mutate()}
-                                    disabled={resetStackMutation.isPending || isFetching}
-                                    variant="outline"
-                                    className="w-full border-orange-300 text-orange-700 hover:bg-orange-50 h-9"
-                                >
-                                    <RotateCcw className="w-3.5 h-3.5 mr-2"/>
-                                    重启协议栈
-                                </Button>
-                                <Button
-                                    onClick={() => rebootMcuMutation.mutate()}
-                                    disabled={rebootMcuMutation.isPending || isFetching}
-                                    variant="outline"
-                                    className="w-full border-orange-300 text-orange-700 hover:bg-orange-50 h-9"
-                                >
-                                    <RotateCcw className="w-3.5 h-3.5 mr-2"/>
-                                    重启模块
-                                </Button>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium">飞行模式</p>
+                                        <p className="text-xs text-gray-500">
+                                            {deviceStatus?.flymode ? '已启用（禁用蜂窝网络）' : '已禁用（蜂窝网络正常）'}
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={deviceStatus?.flymode || false}
+                                        onCheckedChange={(checked) => setFlymodeMutation.mutate(checked)}
+                                        disabled={setFlymodeMutation.isPending || isFetching}
+                                    />
+                                </div>
+                                <div className="border-t pt-2">
+                                    <Button
+                                        onClick={() => rebootMcuMutation.mutate()}
+                                        disabled={rebootMcuMutation.isPending || isFetching}
+                                        variant="outline"
+                                        className="w-full border-orange-300 text-orange-700 hover:bg-orange-50 h-9"
+                                    >
+                                        <RotateCcw className="w-3.5 h-3.5 mr-2"/>
+                                        重启模块
+                                    </Button>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

@@ -31,8 +31,8 @@ export interface SendSMSRequest {
     content: string;
 }
 
-// 设置蜂窝网络请求
-export interface SetCellularRequest {
+// 设置飞行模式请求
+export interface SetFlymodeRequest {
     enabled: boolean;
 }
 
@@ -59,7 +59,7 @@ export interface DeviceStatus {
     type: string;                // 消息类型: "status_response"
     timestamp: number;           // 时间戳
     mem_kb: number;              // 内存使用 (KB)
-    cellular_enabled: boolean;   // 蜂窝网络是否启用
+    flymode: boolean;            // 飞行模式是否启用
     mobile: MobileInfo;          // 移动网络信息
     port_name: string;           // 串口名称
     connected: boolean;          // 串口连接状态

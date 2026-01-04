@@ -11,9 +11,9 @@ export const getStatus = () => {
   return apiClient.get('/serial/status');
 };
 
-// 重启协议栈
-export const resetStack = () => {
-  return apiClient.post('/serial/reset');
+// 设置飞行模式
+export const setFlymode = (enabled: boolean) => {
+  return apiClient.post('/serial/flymode', { enabled });
 };
 
 // 重启模块

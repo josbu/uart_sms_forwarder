@@ -21,7 +21,6 @@ local uartid = uart.VUART_0
 local max_buffer_size = 50
 local msg_buffer = {}
 local uart_recv_buffer = ""
-local cellular_enabled = true
 local call_ring_count = 0  -- 来电响铃计数
 
 -- ========== 关键：禁用自动数据连接 ==========
@@ -70,6 +69,10 @@ function get_mobile_info()
     info.is_roaming = net_stat == 5
     info.uptime = mcu.ticks2() -- 单位为秒
 
+    -- 查询飞行模式状态（0 表示 sim0）
+    -- mobile.flymode(0) 返回当前飞行模式状态：true 表示飞行模式启用，false 表示飞行模式禁用
+    info.flymode = mobile.flymode(0) or false
+
     return info
 end
 
@@ -117,25 +120,25 @@ function process_uart_command(cmd_data)
             mobile = get_mobile_info()
         })
 
-    elseif cmd_data.action == "set_cellular" and cmd_data.enabled ~= nil then
+    elseif cmd_data.action == "set_flymode" and cmd_data.enabled ~= nil then
         -- 规范化为布尔值：兼容 true/false、1/0、"true"/"false"
         -- Lua 中 0 也是真值，必须显式转换
-        local enabled = (cmd_data.enabled == true or cmd_data.enabled == 1 or
-                         cmd_data.enabled == "true" or cmd_data.enabled == "1")
+        local flymode_enabled = (cmd_data.enabled == true or cmd_data.enabled == 1 or
+                                 cmd_data.enabled == "true" or cmd_data.enabled == "1")
 
-        if enabled then
-            mobile.flymode(0)
-            mobile.setAuto(0) -- 再次确保不自动拨号
-            cellular_enabled = true
-        else
-            mobile.flymode(1)
-            cellular_enabled = false
+        -- 设置飞行模式（0 表示 sim0）
+        -- enabled = true 表示启用飞行模式（禁用蜂窝网络）
+        -- enabled = false 表示禁用飞行模式（启用蜂窝网络）
+        mobile.flymode(0, flymode_enabled)
+
+        if not flymode_enabled then
+            mobile.setAuto(0) -- 退出飞行模式后，确保不自动拨号
         end
+
         send_to_uart({
             type = "cmd_response",
-            action = "set_cellular",
-            result = "ok",
-            enabled = cellular_enabled
+            action = "set_flymode",
+            result = "ok"
         })
 
     elseif cmd_data.action == "reset_stack" then
@@ -292,7 +295,7 @@ sys.taskInit(function()
             signal_level = info.signal_level,
             signal_desc = info.signal_desc,
             net_reg = info.is_registered,
-            cellular_enabled = cellular_enabled,
+            flymode = info.flymode,
             sim_ready = info.sim_ready,
             mem = math.floor(collectgarbage("count"))
         })
