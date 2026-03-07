@@ -200,7 +200,7 @@ func (s *SchedulerService) executeTask(task models.ScheduledTask) error {
 		s.logger.Info("取消飞行模式成功")
 		// 等待 30 秒
 		time.Sleep(30 * time.Second)
-		s.logger.Info("等待 30 秒后发送短信")
+		s.logger.Info("等待 30 秒后发送短信...")
 	}
 
 	// 发送短信
@@ -218,8 +218,19 @@ func (s *SchedulerService) executeTask(task models.ScheduledTask) error {
 		zap.String("name", task.Name))
 
 	// 更新任务的 LastRunAt 字段到数据库
+	_ = s.UpdateLastRun(ctx, task.ID, msgId, models.LastRunStatusSuccess)
 
-	_ = s.UpdateLastRun(ctx, task.ID, msgId, models.LastRunStatusUnknown)
+	// 如果是飞行模式，重新设置飞行模式
+	if flyMode {
+		s.logger.Info("等待 30 秒后重新设置飞行模式...")
+		time.Sleep(30 * time.Second)
+		s.logger.Info("重新设置飞行模式")
+		if err := s.serialService.SetFlymode(true); err != nil {
+			s.logger.Error("设置飞行模式失败", zap.Error(err))
+			return err
+		}
+		s.logger.Info("设置飞行模式成功")
+	}
 
 	return nil
 }
